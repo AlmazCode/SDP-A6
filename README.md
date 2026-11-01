@@ -1,30 +1,30 @@
-# Assignment 6 — Social network, тема 16
+# Assignment 6 — Social Network, Variant 16
 
-Небольшой консольный проект: Observer обрабатывает публикации и реакции,
-Visitor выполняет операции над деревом сообщества. Java 17, Maven, JUnit 5.
-Других библиотек нет. PDF-отчёт в проект не входит.
+A small console project: Observer handles posts and reactions, while Visitor
+performs operations on a community tree. Java 17, Maven, and JUnit 5.
+No other libraries are used. The PDF report is prepared separately.
 
-## Запуск
+## Running the Project
 
-Нужны JDK 17 или новее и Maven.
+Requirements: JDK 17 or later and Maven.
 
 ```bash
 mvn test
 java -cp target/classes social.Main
 ```
 
-По умолчанию запускаются **3 потока-производителя**. Число потоков передаётся
-аргументом, минимальное значение — 3:
+The application starts **3 producer threads** by default. Pass the thread count
+as an argument to change it; the minimum value is 3:
 
 ```bash
 java -cp target/classes social.Main 4
 ```
 
-Каждый производитель отправляет 100 событий. Производители с чётным номером
-публикуют события постов, с нечётным — реакции. Это симуляция потока событий
-для готовых снимков групп, без базы данных и пользовательского интерфейса.
+Each producer publishes 100 events. Producers with even indices publish post
+events, while producers with odd indices publish reactions. This simulates an
+event stream for existing group snapshots, without a database or user interface.
 
-Основные результаты при запуске с 3 потоками:
+Main results when running with 3 threads:
 
 ```text
 Producer threads: 3
@@ -38,166 +38,173 @@ Moderation: reviewed=5, flagged=[c1]
 Popular content: [p1, i1, v1]
 ```
 
-Также программа печатает JSON дерева и сообщение о завершении производителей.
-600 записей = 300 исходных событий + 200 отчётов модерации + 100 обновлений трендов.
+The application also prints the tree as JSON and a producer completion message.
+600 log entries = 300 original events + 200 moderation reports + 100 trend updates.
 
-## Структура
+## Project Structure
 
-Все классы находятся в `src/main/java/social`, тесты — в `src/test/java/social`.
-Классы небольшие, каждый отвечает за одну часть задания.
+All classes are in `src/main/java/social`; tests are in `src/test/java/social`.
+Classes are small, and each is responsible for one part of the assignment.
 
-| Часть | Классы |
+| Component | Classes |
 | --- | --- |
-| Интерфейсы Observer | `Subject<E>`, `Observer<E>` |
-| События и доставка | `SocialEvent`, `EventType`, `EventSource` |
-| Два источника | `PostSource`, `ReactionSource` |
-| Пять слушателей | `Feed`, `NotificationCenter`, `ModerationService`, `TrendingTracker`, `EventLog` |
-| Два контейнера | `Community`, `Group` |
-| Четыре типа листьев | `TextPost`, `Comment`, `Image`, `Video` |
-| Интерфейсы Visitor | `Element`, `Visitor<R>` |
-| Операции | `EngagementVisitor`, `ModerationVisitor`, `PopularContentVisitor`, `JsonVisitor`, `ContentCountVisitor` |
-| Сборка и потоки | `Main`, `Producers` |
+| Observer interfaces | `Subject<E>`, `Observer<E>` |
+| Events and delivery | `SocialEvent`, `EventType`, `EventSource` |
+| Two data sources | `PostSource`, `ReactionSource` |
+| Five listeners | `Feed`, `NotificationCenter`, `ModerationService`, `TrendingTracker`, `EventLog` |
+| Two container types | `Community`, `Group` |
+| Four leaf types | `TextPost`, `Comment`, `Image`, `Video` |
+| Visitor interfaces | `Element`, `Visitor<R>` |
+| Operations | `EngagementVisitor`, `ModerationVisitor`, `PopularContentVisitor`, `JsonVisitor`, `ContentCountVisitor` |
+| Composition and threading | `Main`, `Producers` |
 
 ## Observer
 
-`PostSource` публикует `POST_CREATED`, `ReactionSource` — `REACTION_ADDED`.
-Подписка задаётся для конкретного `EventType`. Один слушатель может подписаться
-на несколько типов и несколько источников. Повторная подписка того же объекта
-на тот же тип не добавляет дубликат.
+`PostSource` publishes `POST_CREATED`, and `ReactionSource` publishes
+`REACTION_ADDED`. Subscriptions are registered for a specific `EventType`.
+A listener can subscribe to multiple event types and sources. Subscribing the
+same object to the same event type again does not create a duplicate.
 
-Выбран **push**: источник передаёт неизменяемый `SocialEvent` прямо в `onEvent`.
-В событии есть тип, снимок связанной группы, строка с деталями и числовое значение.
-Слушателю не нужно повторно запрашивать состояние источника, которое другой поток
-уже мог изменить. `SocialEvent` и узлы дерева — records; списки детей копируются
-через `List.copyOf`.
+The project uses **push** delivery: the source passes an immutable `SocialEvent`
+directly to `onEvent`. Each event contains its type, a snapshot of the related
+group, a detail string, and a numeric value. Listeners do not need to query source
+state that another thread may already have changed. `SocialEvent` and tree nodes
+are records; child lists are copied using `List.copyOf`.
 
-Доставка синхронная: обработчики выполняются в потоке производителя. Это упрощает
-контроль завершения: после возврата из `publish` обработаны и исходное событие,
-и порождённые им отчёты. Долгий обработчик задерживает своего производителя —
-это осознанный компромисс небольшого учебного проекта.
+Delivery is synchronous: handlers run in the producer's thread. This simplifies
+shutdown: when `publish` returns successfully, both the original event and any
+reports it triggered have been processed. A slow handler delays its producer;
+this is a deliberate trade-off for a small educational project.
 
-**Цепочка наблюдателей:** `ReactionSource → TrendingTracker → NotificationCenter / EventLog`.
-`TrendingTracker` одновременно Observer и Subject. Он считает реакции по группам
-и публикует `TREND_UPDATED` с накопленным числом реакций.
+**Observer chain:** `ReactionSource → TrendingTracker → NotificationCenter / EventLog`.
+`TrendingTracker` is both an Observer and a Subject. It counts reactions per group
+and publishes `TREND_UPDATED` with the accumulated reaction count.
 
-Реестр — заполненный в конструкторе `EnumMap` со списками `CopyOnWriteArrayList`.
-Сама карта после конструктора не меняется. Каждый обход списка использует снимок:
+The registry is an `EnumMap` populated in the constructor with
+`CopyOnWriteArrayList` values. The map itself does not change after construction.
+Each list traversal uses a snapshot:
 
-- Подписываться и отписываться можно и снаружи, и внутри `onEvent`.
-- Изменение подписки не меняет уже начавшийся обход; новый снимок увидит изменение.
-- Если несколько публикаций уже получили снимки, отписанный слушатель ещё может
-  получить эти события. Отписка не отменяет обработчики, которые уже начались.
-- Исключение одного обработчика не мешает доставке остальным. После обхода
-  `publish` сообщает об ошибке исключением, дополнительные ошибки — в suppressed.
+- Listeners can subscribe and unsubscribe both outside and inside `onEvent`.
+- Subscription changes do not affect a traversal that has already started;
+  a new snapshot will reflect the change.
+- If concurrent publications have already obtained snapshots, an unsubscribed
+  listener may still receive those events. Unsubscribing does not cancel handlers
+  that have already started.
+- One handler's exception does not prevent delivery to the remaining listeners.
+  After traversal, `publish` throws an exception; additional failures are attached
+  as suppressed exceptions.
 
-## Composite и Visitor
+## Composite and Visitor
 
-Дерево имеет три уровня:
+The tree has three levels:
 
 ```text
 Community: students
 ├── Group: java
 │   ├── TextPost: p1, likes=10
-│   ├── Comment: c1, likes=2, текст содержит SPAM
+│   ├── Comment: c1, likes=2, text contains SPAM
 │   ├── Image: i1, likes=5
 │   └── Video: v1, likes=7, durationSeconds=30
 └── Group: music
     └── TextPost: p2, likes=3
 ```
 
-Элементы хранят данные и реализуют `accept`. Расчёты, фильтрация, модерация и
-сериализация вынесены в посетителей.
+Elements store data and implement `accept`. Calculations, filtering, moderation,
+and serialization are implemented by visitors.
 
-| Посетитель | Результат |
+| Visitor | Result |
 | --- | --- |
-| `EngagementVisitor` | `Long`: сумма likes всех листьев |
-| `ModerationVisitor` | `Void`; накапливает число проверенных элементов и список ID с `spam` в тексте/подписи, без учёта регистра |
-| `PopularContentVisitor` | `List<Element>`: контент с likes не меньше заданного порога |
-| `JsonVisitor` | `String`: JSON с вложенными children и экранированием строк |
-| `ContentCountVisitor` | `Integer`: количество листьев, дополнительная операция для trade-off |
+| `EngagementVisitor` | `Long`: the sum of likes across all leaves |
+| `ModerationVisitor` | `Void`; accumulates the number of reviewed elements and IDs whose text or caption contains `spam`, ignoring case |
+| `PopularContentVisitor` | `List<Element>`: content with likes greater than or equal to the supplied threshold |
+| `JsonVisitor` | `String`: JSON with nested children and escaped strings |
+| `ContentCountVisitor` | `Integer`: the number of leaves; an additional operation demonstrating the trade-off |
 
-**Обход выполняет Visitor.** Метод `accept` передаёт управление конкретной
-перегрузке `visit(this)`. Посетитель контейнера сам вызывает `accept` у детей.
-Это позволяет начинать операцию с любой группы и сохранять правильную вложенность
-JSON. Вызов `visitor.visit(element)` для переменной типа `Element` не заменяет
-этот механизм: перегрузка выбирается по объявленному типу аргумента. В `accept`
-`this` уже имеет конкретный тип узла — это вторая часть double dispatch.
+**The Visitor owns traversal.** The `accept` method delegates to the concrete
+`visit(this)` overload. Each container visitor calls `accept` on its children.
+This allows operations to start at any group and preserves correct JSON nesting.
+Calling `visitor.visit(element)` on a variable declared as `Element` does not
+replace this mechanism: overload resolution uses the argument's declared type.
+Inside `accept`, `this` has the concrete node type, providing the second part of
+double dispatch.
 
-Ручная проверка демо: engagement = **10 + 2 + 5 + 7 + 3 = 27**;
-число листьев — **5**; при пороге 5 популярны `p1`, `i1`, `v1`;
-модерация проверяет 5 элементов и помечает только `c1`.
+Hand calculation for the demo: engagement = **10 + 2 + 5 + 7 + 3 = 27**;
+there are **5** leaves; at a threshold of 5, popular content is `p1`, `i1`, and
+`v1`; moderation reviews 5 elements and flags only `c1`.
 
-## Интеграция и многопоточность
+## Integration and Concurrency
 
 `POST_CREATED → ModerationService → event.group().accept(ModerationVisitor)
 → MODERATION_COMPLETED → NotificationCenter / EventLog`.
 
-Модерация обходит **только группу из события**. Другие группы сообщества
-не проверяются. Отчёт возвращается в систему новым событием: `value` содержит
-число помеченных элементов, `detail` — число проверенных и список ID.
-На каждое событие создаётся отдельный накопительный Visitor, поэтому его
-изменяемое состояние не разделяется между потоками.
+Moderation traverses **only the group from the event**. Other groups in the
+community are not inspected. The report returns to the system as a new event:
+`value` contains the number of flagged elements, and `detail` contains the number
+reviewed and their flagged IDs. Each event gets a separate stateful Visitor, so
+its mutable state is not shared between threads.
 
-`Main` — единственный composition root: создаёт и связывает сервисы.
-Зависимости передаются через конструкторы; статических сервисов и ленивого
-создания зависимостей нет. `Producers` получает готовый `ExecutorService`.
+`Main` is the single composition root: it creates and wires services.
+Dependencies are passed through constructors; there are no static services or
+lazily created dependencies. `Producers` receives an existing `ExecutorService`.
 
-Общие счётчики используют `AtomicInteger` / `AtomicLong`, лента и журнал —
-`ConcurrentLinkedQueue`. Карта счётчиков трендов создаётся заранее для переданных
-групп и больше не меняется; ID групп должны быть уникальны. Дерево неизменяемое.
-Блокировки всего Subject нет.
+Shared counters use `AtomicInteger` / `AtomicLong`; the feed and log use
+`ConcurrentLinkedQueue`. The trend counter map is created in advance for the
+supplied groups and is never structurally modified; group IDs must be unique.
+The tree is immutable. No lock is held on the whole Subject.
 
-`Producers.run` отправляет задания, ждёт результаты через `Future.get`, затем
-вызывает `shutdown` и ждёт завершения всех принятых заданий. При ошибке одного
-задания остальные всё равно завершаются. Прерывание во время ожидания завершения
-не отменяет принятую работу; флаг прерывания восстанавливается после ожидания.
-`shutdownNow` не используется, вложенные события обрабатываются синхронно,
-поэтому при штатном завершении события не теряются и рабочие потоки не остаются.
+`Producers.run` submits jobs, waits for their results through `Future.get`, then
+calls `shutdown` and waits for all accepted jobs to finish. If one job fails,
+the others still finish. Interruption during termination waiting does not cancel
+accepted work; the interrupt flag is restored after waiting. `shutdownNow` is
+not used, and nested events are handled synchronously, so normal shutdown loses
+no events and leaves no worker threads running.
 
-Полного порядка событий разных производителей нет. Например, обновление тренда
-со значением 2 может попасть в журнал раньше значения 1; итоговый счётчик точен.
-Engagement берётся из likes в снимке дерева, а TrendingTracker считает входящие
-события реакций. Это разные показатели: симуляция не изменяет снимок дерева.
+There is no total event order across producers. For example, a trend update with
+value 2 may reach the log before value 1; the final counter is still exact.
+Engagement uses the likes stored in the tree snapshot, while `TrendingTracker`
+counts incoming reaction events. These are different metrics: the simulation
+does not modify the tree snapshot.
 
-## Тесты
+## Tests
 
 ```bash
 mvn test
 ```
 
-**30 JUnit 5 тестов:**
+**30 JUnit 5 tests:**
 
-| Файл | Количество | Что проверяет |
+| File | Count | Coverage |
 | --- | ---: | --- |
-| `ObserverTest` | 9 | типы событий, дубликаты, изменение подписок внутри обработчика, исключение слушателя, два источника, цепочка трендов |
-| `VisitorTest` | 9 | ручные расчёты, накопление состояния, фильтр, пустое дерево, JSON, экранирование, копирование списка детей |
-| `IntegrationTest` | 5 | нужное поддерево, отчёт о нарушениях, стресс, штатное завершение и завершение при ошибке производителя |
-| `ContentCountVisitorTest` | 2 | новая операция и пустое дерево |
-| `VideoTest` | 5 | поддержка нового типа всеми пятью посетителями |
+| `ObserverTest` | 9 | Event types, duplicate subscriptions, subscription changes inside handlers, listener exceptions, two sources, and the trend chain |
+| `VisitorTest` | 9 | Hand calculations, accumulated state, filtering, empty trees, JSON, escaping, and defensive copying of child lists |
+| `IntegrationTest` | 5 | Related subtree selection, moderation reports, stress, graceful shutdown, and shutdown after producer failure |
+| `ContentCountVisitorTest` | 2 | The new operation and an empty tree |
+| `VideoTest` | 5 | Support for the new element in all five visitors |
 
-Стресс-тест запускает **4 потока × 1 000 событий**. Ожидается ровно 4 000 исходных
-уведомлений, 4 000 агрегированных событий, итоговый счётчик 4 000 и 4 000 разных
-значений агрегата. Также проверяется завершение ExecutorService.
+The stress test runs **4 threads × 1,000 events**. It expects exactly 4,000 original
+notifications, 4,000 aggregated events, a final counter of 4,000, and 4,000 distinct
+aggregate values. It also checks that the ExecutorService has terminated.
 
 ## UML
 
-[Диаграмма классов SVG](docs/uml.svg) · [PNG для отчёта](docs/uml.png) ·
-[Редактируемый исходник Graphviz](docs/uml.dot).
+[Class diagram SVG](docs/uml.svg) · [PNG for the report](docs/uml.png) ·
+[Editable Graphviz source](docs/uml.dot).
 
-Диаграмма показывает Observer, Composite, Visitor и связь через ModerationService.
-Для пересборки нужен только Graphviz, приложению он не нужен:
+The diagram shows Observer, Composite, Visitor, and their integration through
+`ModerationService`. Graphviz is needed only to regenerate the diagram, not to
+run the application:
 
 ```bash
 dot -Tsvg docs/uml.dot -o docs/uml.svg
 dot -Tpng -Gdpi=160 docs/uml.dot -o docs/uml.png
 ```
 
-## Trade-off: два отдельных коммита
+## Trade-off: Two Separate Commits
 
-История сохранена в `history.bundle`: в среде создания проекта служебная папка
-`.git` была доступна только для чтения. Bundle содержит настоящий Git-репозиторий
-со всеми коммитами. Чтобы получить обычную рабочую копию с историей, из папки
-проекта выполни:
+History is saved in `history.bundle`: the project's `.git` directory was read-only
+in the environment where it was created. The bundle contains a complete Git
+repository with all commits. To restore a normal working copy with its history,
+run these commands from the project directory:
 
 ```bash
 git clone history.bundle social-network
@@ -205,22 +212,22 @@ cd social-network
 git log --oneline
 ```
 
-Далее можно заменить локальный origin адресом своего GitHub-репозитория и
-загрузить ветку `main`. Для сдачи нужна ссылка на этот GitHub-репозиторий.
+Then replace the local origin with your GitHub repository URL and push the `main`
+branch. Submit the link to that GitHub repository.
 
-**`066c3d4` — новый Visitor без изменения элементов.**
+**`066c3d4` — a new Visitor without changing elements.**
 
-Изменены только:
+Only these files changed:
 
-- `src/main/java/social/ContentCountVisitor.java` — новая операция;
-- `src/test/java/social/ContentCountVisitorTest.java` — её тесты;
-- `README.md` — описание.
+- `src/main/java/social/ContentCountVisitor.java` — the new operation;
+- `src/test/java/social/ContentCountVisitorTest.java` — its tests;
+- `README.md` — documentation.
 
-Ни один элемент и интерфейс Visitor не изменены. Добавлять новые операции дёшево.
+No element class or Visitor interface changed. Adding operations is inexpensive.
 
-**`08a1dac` — новый тип элемента Video.**
+**`08a1dac` — a new element type, Video.**
 
-Изменены:
+Files changed:
 
 - `src/main/java/social/Video.java`;
 - `src/main/java/social/Visitor.java`;
@@ -233,16 +240,18 @@ git log --oneline
 - `src/test/java/social/VideoTest.java`;
 - `README.md`.
 
-Новый элемент требует перегрузки в интерфейсе и реализации во **всех** посетителях.
-Если типы контента меняются чаще операций, цена Visitor становится высокой.
+A new element requires an overload in the interface and an implementation in
+**every** visitor. If content types change more often than operations, Visitor
+becomes expensive to maintain.
 
-Посмотреть доказательство после восстановления репозитория:
+After restoring the repository, inspect the changes with:
 
 ```bash
 git show --stat 066c3d4
 git show --stat 08a1dac
 ```
 
-Коммиты отражают реальные этапы работы и имеют реальные даты. Указанное в задании
-ведение истории в течение двух недель нельзя воспроизвести за один сеанс;
-даты коммитов не подменялись. PDF-отчёт и защита выполняются отдельно.
+The commits reflect actual development steps and have real timestamps. The
+assignment's requirement for two weeks of development history cannot be
+reproduced in a single session; commit dates have not been altered. The PDF report
+and live defense are completed separately.
