@@ -1,0 +1,7 @@
+/target/
+/.idea/
+*.iml
+/.agents/
+/.aws/
+/.codex/
+/history.bundle
