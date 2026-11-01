@@ -10,4 +10,6 @@ public interface Visitor<R> {
     R visit(Comment comment);
 
     R visit(Image image);
+
+    R visit(Video video);
 }

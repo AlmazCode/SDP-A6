@@ -34,9 +34,9 @@ public final class JsonVisitor implements Visitor<String> {
                 + ",\"children\":[" + nested + "]}";
     }
 
-    private String content(String type, String id, String text, int likes) {
-        return "{\"type\":" + quote(type) + ",\"id\":" + quote(id)
-                + ",\"text\":" + quote(text) + ",\"likes\":" + likes + "}";
+    private String contentFields(String type, String id, String text, int likes) {
+        return "\"type\":" + quote(type) + ",\"id\":" + quote(id)
+                + ",\"text\":" + quote(text) + ",\"likes\":" + likes;
     }
 
     @Override
@@ -51,16 +51,22 @@ public final class JsonVisitor implements Visitor<String> {
 
     @Override
     public String visit(TextPost post) {
-        return content("post", post.id(), post.text(), post.likes());
+        return "{" + contentFields("post", post.id(), post.text(), post.likes()) + "}";
     }
 
     @Override
     public String visit(Comment comment) {
-        return content("comment", comment.id(), comment.text(), comment.likes());
+        return "{" + contentFields("comment", comment.id(), comment.text(), comment.likes()) + "}";
     }
 
     @Override
     public String visit(Image image) {
-        return content("image", image.id(), image.caption(), image.likes());
+        return "{" + contentFields("image", image.id(), image.caption(), image.likes()) + "}";
+    }
+
+    @Override
+    public String visit(Video video) {
+        return "{" + contentFields("video", video.id(), video.caption(), video.likes())
+                + ",\"durationSeconds\":" + video.durationSeconds() + "}";
     }
 }

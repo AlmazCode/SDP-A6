@@ -31,4 +31,9 @@ public final class ContentCountVisitor implements Visitor<Integer> {
     public Integer visit(Image image) {
         return 1;
     }
+
+    @Override
+    public Integer visit(Video video) {
+        return 1;
+    }
 }

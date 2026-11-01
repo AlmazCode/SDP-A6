@@ -41,4 +41,9 @@ public final class PopularContentVisitor implements Visitor<List<Element>> {
     public List<Element> visit(Image image) {
         return select(image, image.likes());
     }
+
+    @Override
+    public List<Element> visit(Video video) {
+        return select(video, video.likes());
+    }
 }

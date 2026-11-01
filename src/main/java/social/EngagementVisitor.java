@@ -31,4 +31,9 @@ public final class EngagementVisitor implements Visitor<Long> {
     public Long visit(Image image) {
         return (long) image.likes();
     }
+
+    @Override
+    public Long visit(Video video) {
+        return (long) video.likes();
+    }
 }

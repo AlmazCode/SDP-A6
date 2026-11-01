@@ -48,6 +48,11 @@ public final class ModerationVisitor implements Visitor<Void> {
         return inspect(image.id(), image.caption());
     }
 
+    @Override
+    public Void visit(Video video) {
+        return inspect(video.id(), video.caption());
+    }
+
     public int reviewed() {
         return reviewed;
     }

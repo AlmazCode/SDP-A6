@@ -14,7 +14,8 @@ public final class Main {
         Group java = new Group("java", List.of(
                 new TextPost("p1", "Observer and Visitor", 10),
                 new Comment("c1", "SPAM offer", 2),
-                new Image("i1", "Class diagram", 5)));
+                new Image("i1", "Class diagram", 5),
+                new Video("v1", "Pattern tutorial", 7, 30)));
         Group music = new Group("music", List.of(new TextPost("p2", "New song", 3)));
         Community community = new Community("students", List.of(java, music));
 
@@ -60,6 +61,7 @@ public final class Main {
         System.out.println("Notifications: " + notifications.count());
         System.out.println("Logged events: " + log.events().size());
         System.out.println("Engagement: " + community.accept(new EngagementVisitor()));
+        System.out.println("Content count: " + community.accept(new ContentCountVisitor()));
         ModerationVisitor review = new ModerationVisitor();
         community.accept(review);
         System.out.println("Moderation: reviewed=" + review.reviewed()
