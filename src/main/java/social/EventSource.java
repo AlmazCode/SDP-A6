@@ -28,7 +28,6 @@ public class EventSource implements Subject<SocialEvent> {
     @Override
     public void publish(SocialEvent event) {
         RuntimeException failure = null;
-        // Each iterator sees a snapshot, so callbacks may change subscriptions.
         for (Observer<SocialEvent> observer : listeners.get(event.type())) {
             try {
                 observer.onEvent(event);

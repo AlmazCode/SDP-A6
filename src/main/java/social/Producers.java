@@ -30,7 +30,6 @@ public final class Producers {
                 try {
                     executor.awaitTermination(1, TimeUnit.SECONDS);
                 } catch (InterruptedException exception) {
-                    // Finish accepted work before restoring interruption.
                     interrupted = true;
                 }
             }
