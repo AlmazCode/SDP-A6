@@ -2,13 +2,17 @@
 
 A small console project: Observer handles posts and reactions, while Visitor
 performs operations on a community tree. Java 17, Maven, and JUnit 5.
-No other libraries are used. The PDF report is prepared separately.
+No other libraries are used by the Java application. The formatted report is included.
+
+Repository: [AlmazCode/SDP-A6](https://github.com/AlmazCode/SDP-A6).
 
 ## Running the Project
 
 Requirements: JDK 17 or later and Maven.
 
 ```bash
+git clone https://github.com/AlmazCode/SDP-A6.git
+cd SDP-A6
 mvn test
 java -cp target/classes social.Main
 ```
@@ -185,6 +189,15 @@ The stress test runs **4 threads × 1,000 events**. It expects exactly 4,000 ori
 notifications, 4,000 aggregated events, a final counter of 4,000, and 4,000 distinct
 aggregate values. It also checks that the ExecutorService has terminated.
 
+## Report
+
+[PDF report](output/pdf/SDP_Assignment_6_Sabirzhanov_Emil.pdf) ·
+[Editable Word document](output/docx/SDP_Assignment_6_Sabirzhanov_Emil.docx).
+
+The two-page report follows the layout of Assignment 5, with Observer and Visitor
+class diagrams, the moderation sequence, design notes, test results, and the
+GitHub repository link.
+
 ## UML
 
 [Class diagram SVG](docs/uml.svg) · [PNG for the report](docs/uml.png) ·
@@ -201,19 +214,8 @@ dot -Tpng -Gdpi=160 docs/uml.dot -o docs/uml.png
 
 ## Trade-off: Two Separate Commits
 
-History is saved in `history.bundle`: the project's `.git` directory was read-only
-in the environment where it was created. The bundle contains a complete Git
-repository with all commits. To restore a normal working copy with its history,
-run these commands from the project directory:
-
-```bash
-git clone history.bundle social-network
-cd social-network
-git log --oneline
-```
-
-Then replace the local origin with your GitHub repository URL and push the `main`
-branch. Submit the link to that GitHub repository.
+The repository preserves both trade-off changes as separate commits in its
+Git history.
 
 **`066c3d4` — a new Visitor without changing elements.**
 
@@ -244,7 +246,7 @@ A new element requires an overload in the interface and an implementation in
 **every** visitor. If content types change more often than operations, Visitor
 becomes expensive to maintain.
 
-After restoring the repository, inspect the changes with:
+Inspect the changes with:
 
 ```bash
 git show --stat 066c3d4
@@ -254,4 +256,4 @@ git show --stat 08a1dac
 The commits reflect actual development steps and have real timestamps. The
 assignment's requirement for two weeks of development history cannot be
 reproduced in a single session; commit dates have not been altered. The PDF report
-and live defense are completed separately.
+is included; the live defense is completed separately.
